@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://192.168.1.XXX:8000'; // Replace with your local IP
+export const API_BASE_URL = 'http://172.16.8.2:8000'; // Local IP for Expo Go testing
 export const API_PREFIX = '/api/v1';
 
 /**
