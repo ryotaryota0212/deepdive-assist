@@ -1,35 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, ScrollView } from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import { Button, Card, Chip, Divider } from 'react-native-paper';
-import { RootStackParamList, MediaItem, DeepDiveSession, MediaType } from '../../types';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TextInput, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { Button, Card, Chip, Divider, Snackbar } from 'react-native-paper';
+import { RootStackParamList, MediaItem } from '../../types';
+import { useMediaItem } from '../../hooks/useMediaData';
+import { useDeepDiveSessions } from '../../hooks/useDeepDiveData';
 
 type DeepDiveScreenRouteProp = RouteProp<RootStackParamList, 'DeepDive'>;
 
-const mockMediaItems: Record<string, MediaItem> = {
-  '1': {
-    id: '1',
-    title: '鬼滅の刃',
-    mediaType: MediaType.ANIME, // Using proper enum value
-    creator: '吾峠呼世晴',
-    releaseYear: 2019,
-    coverImage: 'https://via.placeholder.com/150',
-    genres: ['アクション', 'ファンタジー'],
-    description: '家族を鬼に殺された少年が、鬼殺隊に入隊し、妹を人間に戻すために戦う物語。',
-    capturedAt: new Date(),
-  },
-  '2': {
-    id: '2',
-    title: 'ハリー・ポッターと賢者の石',
-    mediaType: MediaType.BOOK, // Using proper enum value
-    creator: 'J.K. ローリング',
-    releaseYear: 1997,
-    coverImage: 'https://via.placeholder.com/150',
-    genres: ['ファンタジー', '冒険'],
-    description: '11歳の少年ハリー・ポッターが魔法学校ホグワーツで魔法を学び、闇の魔法使いヴォルデモートと対決する物語。',
-    capturedAt: new Date(),
-  },
-};
 
 const presetQuestions = [
   '作品の裏テーマを解説して',
@@ -42,76 +20,88 @@ const presetQuestions = [
 
 const DeepDiveScreen = () => {
   const route = useRoute<DeepDiveScreenRouteProp>();
+  const navigation = useNavigation();
   const { mediaId } = route.params;
   
-  const [media, setMedia] = useState<MediaItem | null>(null);
+  const { mediaItem, loading: mediaLoading, error: mediaError, refreshMedia } = useMediaItem(mediaId || '');
+  const { sessions, loading: sessionsLoading, error: sessionsError, createSession, refreshSessions } = useDeepDiveSessions(mediaId);
+  
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [relatedWorks, setRelatedWorks] = useState<MediaItem[]>([]);
-
-  useEffect(() => {
-    setMedia(mockMediaItems[mediaId]);
-  }, [mediaId]);
-
-  const handleAskQuestion = (q: string = question) => {
-    if (!q) return;
-    
-    setQuestion(q);
-    setIsLoading(true);
-    setAnswer(null);
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (media?.title === '鬼滅の刃') {
-        setAnswer(`「鬼滅の刃」の裏テーマは「家族の絆と人間性の回復」です。
-
-表面的には鬼との戦いを描いたアクション作品ですが、根底にあるのは「人間らしさとは何か」という問いかけです。
-
-主人公・炭治郎は家族を失いながらも、鬼と化した妹・禰豆子の人間性を信じ続けます。この「人間と鬼」の二項対立は単純な善悪ではなく、人間が持つ残酷さと鬼が持つ哀しみという複雑な感情を描いています。
-
-作中の鬼たちは皆、人間だった頃の記憶や感情の欠片を持っており、彼らの過去の物語は「人間社会の闇」を象徴しています。
-
-また、呼吸法という超人的な力を得るために「全集中」する修行は、現代社会で失われつつある「一つのことに打ち込む集中力と忍耐」の大切さを示唆しています。`);
-        
-        setRelatedWorks([
-          {
-            id: '101',
-            title: '進撃の巨人',
-            mediaType: MediaType.ANIME,
-            creator: '諫山創',
-            releaseYear: 2013,
-            capturedAt: new Date(),
-          },
-          {
-            id: '102',
-            title: 'NARUTO -ナルト-',
-            mediaType: MediaType.ANIME,
-            creator: '岸本斉史',
-            releaseYear: 2002,
-            capturedAt: new Date(),
-          },
-        ]);
-      } else {
-        setAnswer('この作品についての深い分析結果がここに表示されます。作品のテーマ、象徴、社会的影響などについて考察します。');
-      }
-    }, 2000);
+  const [error, setError] = useState<string | null>(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refreshMedia(), refreshSessions()]);
+    setRefreshing(false);
   };
 
-  if (!media) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
+  const handleAskQuestion = async (q: string = question) => {
+    if (!q || !mediaId) return;
+    
+    try {
+      setQuestion(q);
+      setIsLoading(true);
+      setError(null);
+      
+      const newSession = await createSession(q);
+      console.log('Created deep dive session:', newSession);
+      
+      setQuestion('');
+    } catch (err) {
+      console.error('Error creating deep dive session:', err);
+      setError('質問の処理中にエラーが発生しました。もう一度お試しください。');
+      setSnackbarVisible(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      <Card style={styles.mediaCard}>
-        <Card.Title title={media.title} subtitle={`${media.creator} • ${media.releaseYear}`} />
-      </Card>
+    <View style={{ flex: 1 }}>
+      <ScrollView 
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {mediaLoading ? (
+          <Card style={styles.mediaCard}>
+            <Card.Content style={{ alignItems: 'center', padding: 20 }}>
+              <ActivityIndicator size="large" color="#6200ee" />
+              <Text style={{ marginTop: 10 }}>作品情報を読み込み中...</Text>
+            </Card.Content>
+          </Card>
+        ) : mediaError ? (
+          <Card style={styles.mediaCard}>
+            <Card.Title title="エラーが発生しました" />
+            <Card.Content>
+              <Text>作品情報の取得中にエラーが発生しました。</Text>
+            </Card.Content>
+            <Card.Actions>
+              <Button onPress={() => navigation.goBack()}>戻る</Button>
+            </Card.Actions>
+          </Card>
+        ) : mediaItem ? (
+          <Card style={styles.mediaCard}>
+            <Card.Title 
+              title={mediaItem.title} 
+              subtitle={`${mediaItem.creator} • ${mediaItem.releaseYear}`} 
+            />
+          </Card>
+        ) : (
+          <Card style={styles.mediaCard}>
+            <Card.Title title="作品が見つかりません" />
+            <Card.Content>
+              <Text>指定された作品が見つかりませんでした。</Text>
+            </Card.Content>
+            <Card.Actions>
+              <Button onPress={() => navigation.goBack()}>戻る</Button>
+            </Card.Actions>
+          </Card>
+        )}
 
       <Card style={styles.questionCard}>
         <Card.Title title="質問する" />
@@ -121,6 +111,7 @@ const DeepDiveScreen = () => {
             value={question}
             onChangeText={setQuestion}
             placeholder="作品について質問してください..."
+            editable={!isLoading}
           />
           
           <Text style={styles.presetTitle}>プリセット質問</Text>
@@ -130,6 +121,7 @@ const DeepDiveScreen = () => {
                 key={index}
                 onPress={() => handleAskQuestion(q)}
                 style={styles.presetChip}
+                disabled={isLoading}
               >
                 {q}
               </Chip>
@@ -141,53 +133,84 @@ const DeepDiveScreen = () => {
             mode="contained"
             onPress={() => handleAskQuestion()}
             loading={isLoading}
-            disabled={!question || isLoading}
+            disabled={!question || isLoading || !mediaId}
           >
             質問する
           </Button>
         </Card.Actions>
       </Card>
 
-      {answer && (
+      {sessionsLoading && !refreshing ? (
         <Card style={styles.answerCard}>
-          <Card.Title title="AI分析" />
+          <Card.Content style={{ alignItems: 'center', padding: 20 }}>
+            <ActivityIndicator size="small" color="#6200ee" />
+            <Text style={{ marginTop: 10 }}>セッションを読み込み中...</Text>
+          </Card.Content>
+        </Card>
+      ) : sessionsError ? (
+        <Card style={styles.answerCard}>
+          <Card.Title title="エラーが発生しました" />
           <Card.Content>
-            <Text style={styles.answerText}>{answer}</Text>
-            
-            {relatedWorks.length > 0 && (
-              <>
-                <Divider style={styles.divider} />
-                <Text style={styles.relatedTitle}>関連作品</Text>
-                {relatedWorks.map((work) => (
-                  <Card key={work.id} style={styles.relatedCard}>
-                    <Card.Title
-                      title={work.title}
-                      subtitle={`${work.creator} • ${work.releaseYear}`}
-                    />
-                  </Card>
-                ))}
-              </>
-            )}
+            <Text>セッションの取得中にエラーが発生しました。</Text>
           </Card.Content>
           <Card.Actions>
-            <Button
-              mode="outlined"
-              icon="share"
-              onPress={() => console.log('Share deep dive')}
-            >
-              シェア
-            </Button>
-            <Button
-              mode="outlined"
-              icon="content-save"
-              onPress={() => console.log('Save deep dive')}
-            >
-              保存
-            </Button>
+            <Button onPress={refreshSessions}>再試行</Button>
           </Card.Actions>
         </Card>
-      )}
-    </ScrollView>
+      ) : sessions && sessions.length > 0 ? (
+        sessions.map((session) => (
+          <Card key={session.id} style={styles.answerCard}>
+            <Card.Title title={`質問: ${session.question}`} />
+            <Card.Content>
+              <Text style={styles.answerText}>{session.answer}</Text>
+              
+              {session.relatedWorks && session.relatedWorks.length > 0 && (
+                <>
+                  <Divider style={styles.divider} />
+                  <Text style={styles.relatedTitle}>関連作品</Text>
+                  {session.relatedWorks.map((work) => (
+                    <Card key={work.id} style={styles.relatedCard}>
+                      <Card.Title
+                        title={work.title}
+                        subtitle={`${work.creator} • ${work.releaseYear}`}
+                      />
+                    </Card>
+                  ))}
+                </>
+              )}
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="outlined"
+                icon="share"
+                onPress={() => console.log('Share deep dive')}
+              >
+                シェア
+              </Button>
+              <Button
+                mode="outlined"
+                icon="content-save"
+                onPress={() => console.log('Save deep dive')}
+              >
+                保存
+              </Button>
+            </Card.Actions>
+          </Card>
+        ))
+      ) : null}
+      </ScrollView>
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        action={{
+          label: '閉じる',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {error}
+      </Snackbar>
+    </View>
   );
 };
 

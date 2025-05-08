@@ -1,40 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card } from 'react-native-paper';
 import { RootStackParamList, MediaItem, MediaType } from '../types';
+import { useMediaData } from '../hooks/useMediaData';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
-const mockMediaItems: MediaItem[] = [
-  {
-    id: '1',
-    title: '鬼滅の刃',
-    mediaType: MediaType.ANIME, // Using proper enum value
-    creator: '吾峠呼世晴',
-    releaseYear: 2019,
-    coverImage: 'https://via.placeholder.com/150',
-    genres: ['アクション', 'ファンタジー'],
-    description: '家族を鬼に殺された少年が、鬼殺隊に入隊し、妹を人間に戻すために戦う物語。',
-    capturedAt: new Date(),
-  },
-  {
-    id: '2',
-    title: 'ハリー・ポッターと賢者の石',
-    mediaType: MediaType.BOOK, // Using proper enum value
-    creator: 'J.K. ローリング',
-    releaseYear: 1997,
-    coverImage: 'https://via.placeholder.com/150',
-    genres: ['ファンタジー', '冒険'],
-    description: '11歳の少年ハリー・ポッターが魔法学校ホグワーツで魔法を学び、闇の魔法使いヴォルデモートと対決する物語。',
-    capturedAt: new Date(),
-  },
-];
 
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>(mockMediaItems);
+  const { mediaItems, loading, error, refreshMedia } = useMediaData();
 
   const renderMediaItem = ({ item }: { item: MediaItem }) => (
     <TouchableOpacity
@@ -86,7 +63,21 @@ const HomeScreen = () => {
       </View>
 
       <Text style={styles.sectionTitle}>最近のキャプチャ</Text>
-      {mediaItems.length > 0 ? (
+      {loading ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#6200ee" />
+          <Text style={styles.emptyStateText}>読み込み中...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>
+            エラーが発生しました。下に引っ張って更新してください。
+          </Text>
+          <Button onPress={refreshMedia} mode="contained" style={{ marginTop: 12 }}>
+            更新
+          </Button>
+        </View>
+      ) : mediaItems.length > 0 ? (
         <FlatList
           data={mediaItems}
           renderItem={renderMediaItem}
@@ -94,6 +85,9 @@ const HomeScreen = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.mediaList}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refreshMedia} />
+          }
         />
       ) : (
         <View style={styles.emptyState}>
