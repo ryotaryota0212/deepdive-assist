@@ -23,6 +23,10 @@ const CaptureScreen = () => {
       setLoading(true);
       setError(null);
       
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('リクエストがタイムアウトしました。サーバーが実行されていることを確認してください。')), 10000)
+      );
+      
       const newMedia = {
         title,
         mediaType,
@@ -32,7 +36,11 @@ const CaptureScreen = () => {
         genres: [],
       };
       
-      const createdMedia = await mediaService.createMedia(newMedia);
+      const createdMedia = await Promise.race([
+        mediaService.createMedia(newMedia),
+        timeoutPromise
+      ]) as any;
+      
       console.log('Captured media:', createdMedia);
       
       setTitle('');
@@ -42,7 +50,7 @@ const CaptureScreen = () => {
       navigation.navigate('MediaDetail', { mediaId: createdMedia.id });
     } catch (err) {
       console.error('Error capturing media:', err);
-      setError('作品の保存中にエラーが発生しました。もう一度お試しください。');
+      setError('作品の保存中にエラーが発生しました。バックエンドサーバーが実行されていることを確認してください。');
       setSnackbarVisible(true);
     } finally {
       setLoading(false);

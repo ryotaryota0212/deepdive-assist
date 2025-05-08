@@ -26,6 +26,12 @@ class ApiClient {
         },
         body: JSON.stringify(data),
       });
+      
+      if (response.status === 307) {
+        console.error(`Redirect detected: ${response.status} ${response.statusText}`);
+        throw new Error('API redirected the request. The server might be misconfigured or unavailable.');
+      }
+      
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
