@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, RadioButton, Card } from 'react-native-paper';
+import { Button, RadioButton, Card, Snackbar } from 'react-native-paper';
 import { RootStackParamList, MediaType } from '../../types';
+import { mediaService } from '../../services/media-service';
 
 type CaptureScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Capture'>;
 
@@ -13,121 +14,160 @@ const CaptureScreen = () => {
   const [creator, setCreator] = useState('');
   const [mediaType, setMediaType] = useState<MediaType>(MediaType.MOVIE);
   const [year, setYear] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
 
-  const handleCapture = () => {
-    const newMedia = {
-      id: Date.now().toString(),
-      title,
-      mediaType,
-      creator,
-      releaseYear: parseInt(year) || undefined,
-      capturedAt: new Date(),
-    };
-    
-    console.log('Captured media:', newMedia);
-    
-    navigation.navigate('MediaDetail', { mediaId: newMedia.id });
+  const handleCapture = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const newMedia = {
+        title,
+        mediaType,
+        creator,
+        releaseYear: parseInt(year) || new Date().getFullYear(),
+        description: '',
+        genres: [],
+      };
+      
+      const createdMedia = await mediaService.createMedia(newMedia);
+      console.log('Captured media:', createdMedia);
+      
+      setTitle('');
+      setCreator('');
+      setYear('');
+      
+      navigation.navigate('MediaDetail', { mediaId: createdMedia.id });
+    } catch (err) {
+      console.error('Error capturing media:', err);
+      setError('作品の保存中にエラーが発生しました。もう一度お試しください。');
+      setSnackbarVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Card style={styles.card}>
-        <Card.Title title="作品をキャプチャ" />
-        <Card.Content>
-          <Text style={styles.label}>タイトル</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="作品のタイトルを入力"
-          />
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container}>
+        <Card style={styles.card}>
+          <Card.Title title="作品をキャプチャ" />
+          <Card.Content>
+            <Text style={styles.label}>タイトル</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="作品のタイトルを入力"
+            />
 
-          <Text style={styles.label}>作者/クリエイター</Text>
-          <TextInput
-            style={styles.input}
-            value={creator}
-            onChangeText={setCreator}
-            placeholder="作者、監督、開発者など"
-          />
+            <Text style={styles.label}>作者/クリエイター</Text>
+            <TextInput
+              style={styles.input}
+              value={creator}
+              onChangeText={setCreator}
+              placeholder="作者、監督、開発者など"
+            />
 
-          <Text style={styles.label}>リリース年</Text>
-          <TextInput
-            style={styles.input}
-            value={year}
-            onChangeText={setYear}
-            placeholder="例: 2023"
-            keyboardType="numeric"
-          />
+            <Text style={styles.label}>リリース年</Text>
+            <TextInput
+              style={styles.input}
+              value={year}
+              onChangeText={setYear}
+              placeholder="例: 2023"
+              keyboardType="numeric"
+            />
 
-          <Text style={styles.label}>メディアタイプ</Text>
-          <RadioButton.Group
-            onValueChange={(value: string) => setMediaType(value as MediaType)}
-            value={mediaType}
-          >
-            <View style={styles.radioRow}>
-              <RadioButton.Item label="映画" value={MediaType.MOVIE} />
-              <RadioButton.Item label="アニメ" value={MediaType.ANIME} />
+            <Text style={styles.label}>メディアタイプ</Text>
+            <RadioButton.Group
+              onValueChange={(value: string) => setMediaType(value as MediaType)}
+              value={mediaType}
+            >
+              <View style={styles.radioRow}>
+                <RadioButton.Item label="映画" value={MediaType.MOVIE} />
+                <RadioButton.Item label="アニメ" value={MediaType.ANIME} />
+              </View>
+              <View style={styles.radioRow}>
+                <RadioButton.Item label="書籍" value={MediaType.BOOK} />
+                <RadioButton.Item label="ゲーム" value={MediaType.GAME} />
+              </View>
+              <View style={styles.radioRow}>
+                <RadioButton.Item label="音楽" value={MediaType.MUSIC} />
+                <RadioButton.Item label="その他" value={MediaType.OTHER} />
+              </View>
+            </RadioButton.Group>
+          </Card.Content>
+        </Card>
+
+        <View style={styles.buttonContainer}>
+          {loading ? (
+            <View style={[styles.button, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="small" color="#6200ee" />
             </View>
-            <View style={styles.radioRow}>
-              <RadioButton.Item label="書籍" value={MediaType.BOOK} />
-              <RadioButton.Item label="ゲーム" value={MediaType.GAME} />
-            </View>
-            <View style={styles.radioRow}>
-              <RadioButton.Item label="音楽" value={MediaType.MUSIC} />
-              <RadioButton.Item label="その他" value={MediaType.OTHER} />
-            </View>
-          </RadioButton.Group>
-        </Card.Content>
-      </Card>
-
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="contained"
-          onPress={handleCapture}
-          disabled={!title}
-          style={styles.button}
-        >
-          キャプチャする
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={() => navigation.goBack()}
-          style={styles.button}
-        >
-          キャンセル
-        </Button>
-      </View>
-
-      <Card style={styles.card}>
-        <Card.Title title="または外部サービスから取り込む" />
-        <Card.Content>
+          ) : (
+            <Button
+              mode="contained"
+              onPress={handleCapture}
+              disabled={!title}
+              style={styles.button}
+            >
+              キャプチャする
+            </Button>
+          )}
           <Button
             mode="outlined"
-            icon="barcode-scan"
-            onPress={() => console.log('Barcode scan')}
-            style={styles.serviceButton}
+            onPress={() => navigation.goBack()}
+            style={styles.button}
+            disabled={loading}
           >
-            バーコードをスキャン
+            キャンセル
           </Button>
-          <Button
-            mode="outlined"
-            icon="movie"
-            onPress={() => console.log('TMDb import')}
-            style={styles.serviceButton}
-          >
-            TMDb から取り込む
-          </Button>
-          <Button
-            mode="outlined"
-            icon="book"
-            onPress={() => console.log('Kindle import')}
-            style={styles.serviceButton}
-          >
-            Kindle から取り込む
-          </Button>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+        </View>
+
+        <Card style={styles.card}>
+          <Card.Title title="または外部サービスから取り込む" />
+          <Card.Content>
+            <Button
+              mode="outlined"
+              icon="barcode-scan"
+              onPress={() => console.log('Barcode scan')}
+              style={styles.serviceButton}
+            >
+              バーコードをスキャン
+            </Button>
+            <Button
+              mode="outlined"
+              icon="movie"
+              onPress={() => console.log('TMDb import')}
+              style={styles.serviceButton}
+            >
+              TMDb から取り込む
+            </Button>
+            <Button
+              mode="outlined"
+              icon="book"
+              onPress={() => console.log('Kindle import')}
+              style={styles.serviceButton}
+            >
+              Kindle から取り込む
+            </Button>
+          </Card.Content>
+        </Card>
+      </ScrollView>
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        action={{
+          label: '閉じる',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {error}
+      </Snackbar>
+    </View>
   );
 };
 
