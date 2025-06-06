@@ -4,14 +4,14 @@ import json
 from dotenv import load_dotenv
 import hashlib
 
-from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
+from langchain_community.llms import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain.chains import LLMChain, RetrievalQA
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field

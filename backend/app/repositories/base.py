@@ -65,6 +65,11 @@ class BaseRepository(Generic[T, CreateSchemaType, UpdateSchemaType]):
                     query = query.eq(field, value)
             
             result = query.execute()
+            # captured_atがNoneの場合は現在時刻を設定
+            from datetime import datetime
+            for item in result.data:
+                if not item.get("captured_at"):
+                    item["captured_at"] = datetime.utcnow()
             return result.data
         else:
             try:
@@ -74,7 +79,14 @@ class BaseRepository(Generic[T, CreateSchemaType, UpdateSchemaType]):
                     if value is not None:
                         query = query.filter(getattr(self.model, field) == value)
                 
-                return query.offset(skip).limit(limit).all()
+                items = query.offset(skip).limit(limit).all()
+                # captured_atがNoneの場合は現在時刻を設定
+                from datetime import datetime
+                for item in items:
+                    if not item.captured_at:
+                        item.captured_at = datetime.utcnow()
+                self.db.commit()
+                return items
             except Exception as e:
                 if "is not among the defined enum values" in str(e):
                     from app.db.init_db import init_db

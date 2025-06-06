@@ -1,73 +1,30 @@
-import { getFullUrl } from '../config/api';
+import axios from 'axios';
 
-/**
- * API client for making HTTP requests
- */
-class ApiClient {
-  async get<T>(endpoint: string): Promise<T> {
-    try {
-      const response = await fetch(getFullUrl(endpoint));
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`GET request failed: ${endpoint}`, error);
-      throw error;
+const API_BASE_URL = 'http://192.168.3.3:8000/api/v1';
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  maxRedirects: 0, // リダイレクトを許可しない
+});
+
+// レスポンスのインターセプターを追加
+apiClient.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response?.status === 307) {
+      // リダイレクトURLを直接使用
+      const redirectUrl = error.response.headers.location;
+      return axios({
+        method: error.config.method,
+        url: redirectUrl,
+        data: error.config.data,
+        headers: error.config.headers,
+      }).then(response => response.data);
     }
+    console.error(`${error.config?.method?.toUpperCase()} request failed: ${error.config?.url}`, error);
+    throw error;
   }
-
-  async post<T>(endpoint: string, data: any): Promise<T> {
-    try {
-      const response = await fetch(getFullUrl(endpoint), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`POST request failed: ${endpoint}`, error);
-      throw error;
-    }
-  }
-
-  async put<T>(endpoint: string, data: any): Promise<T> {
-    try {
-      const response = await fetch(getFullUrl(endpoint), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error(`PUT request failed: ${endpoint}`, error);
-      throw error;
-    }
-  }
-
-  async delete(endpoint: string): Promise<void> {
-    try {
-      const response = await fetch(getFullUrl(endpoint), {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error(`DELETE request failed: ${endpoint}`, error);
-      throw error;
-    }
-  }
-}
-
-export const apiClient = new ApiClient();
+);

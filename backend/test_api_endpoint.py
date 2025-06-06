@@ -7,7 +7,7 @@ def test_create_media():
     # Test with enum value as string
     payload = {
         "title": "千と千尋の神隠し",
-        "media_type": "anime",
+        "media_type": "ANIME",
         "creator": "宮崎駿",
         "release_year": 2001,
         "cover_image": "https://example.com/spirited-away.jpg",

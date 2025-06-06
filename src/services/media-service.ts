@@ -6,12 +6,12 @@ import { MediaItem, MediaType } from '../types';
  */
 class MediaService {
   async getAllMedia(): Promise<MediaItem[]> {
-    const response = await apiClient.get<any[]>('/media');
+    const response = await apiClient.get<any[]>('/media/');
     return response.map(this.transformMediaResponse);
   }
 
   async getMediaById(id: string): Promise<MediaItem> {
-    const response = await apiClient.get<any>(`/media/${id}`);
+    const response = await apiClient.get<any>(`/media/${id}/`);
     return this.transformMediaResponse(response);
   }
 
@@ -26,7 +26,7 @@ class MediaService {
       genres: media.genres,
     };
 
-    const response = await apiClient.post<any>('/media', requestData);
+    const response = await apiClient.post<any>('/media/', requestData);
     return this.transformMediaResponse(response);
   }
 
@@ -41,12 +41,12 @@ class MediaService {
       genres: media.genres,
     };
 
-    const response = await apiClient.put<any>(`/media/${id}`, requestData);
+    const response = await apiClient.put<any>(`/media/${id}/`, requestData);
     return this.transformMediaResponse(response);
   }
 
   async deleteMedia(id: string): Promise<void> {
-    await apiClient.delete(`/media/${id}`);
+    await apiClient.delete(`/media/${id}/`);
   }
 
   /**
@@ -56,7 +56,7 @@ class MediaService {
     return {
       id: data.id.toString(),
       title: data.title,
-      mediaType: data.media_type as MediaType,
+      mediaType: (data.media_type || '').toUpperCase() as MediaType,
       creator: data.creator,
       releaseYear: data.release_year,
       coverImage: data.cover_image,

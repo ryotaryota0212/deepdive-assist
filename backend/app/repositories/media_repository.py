@@ -29,7 +29,7 @@ class MediaRepository(BaseRepository[Media, MediaCreate, MediaUpdate]):
         """
         return self.get_multi(skip=skip, limit=limit, media_type=media_type)
     
-    def add_genre(self, media_id: int, genre_name: str) -> bool:
+    def add_genre(self, media_id: str, genre_name: str) -> bool:
         """
         Add a genre to a media item.
         """

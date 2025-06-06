@@ -6,12 +6,12 @@ from datetime import datetime
 from app.db.database import Base
 
 class MediaType(str, enum.Enum):
-    MOVIE = "movie"
-    ANIME = "anime"
-    BOOK = "book"
-    GAME = "game"
-    MUSIC = "music"
-    OTHER = "other"
+    MOVIE = "MOVIE"
+    ANIME = "ANIME"
+    BOOK = "BOOK"
+    GAME = "GAME"
+    MUSIC = "MUSIC"
+    OTHER = "OTHER"
 
 class Media(Base):
     __tablename__ = "media"

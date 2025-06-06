@@ -17,16 +17,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Disable CORS. Do not remove this for full-stack development.
+# CORSの設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],  # 開発環境では全てのオリジンを許可
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api/v1/media")
 
 @app.on_event("startup")
 async def startup_event():

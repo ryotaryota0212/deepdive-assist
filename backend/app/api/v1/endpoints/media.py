@@ -6,6 +6,7 @@ from app.models.media import Media, MediaType
 from app.repositories.media_repository import MediaRepository
 from app.schemas.media import MediaCreate, MediaUpdate, MediaResponse
 import logging
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,10 +23,12 @@ def create_media(
     Create a new media item.
     """
     try:
+        print('media:', media)
+        print('media.media_type:', media.media_type)
         if isinstance(media.media_type, str):
             media_type_str = media.media_type.lower()
             for enum_val in MediaType:
-                if enum_val.value == media_type_str:
+                if enum_val.value.lower() == media_type_str:
                     media.media_type = enum_val
                     break
         
@@ -33,10 +36,21 @@ def create_media(
         db_media = repo.create(media)
         
         if media.genres:
+            # Supabaseの場合はdict、SQLAlchemyの場合はモデル
+            media_id = db_media["id"] if isinstance(db_media, dict) else db_media.id
             for genre_name in media.genres:
-                repo.add_genre(db_media.id, genre_name)
+                repo.add_genre(media_id, genre_name)
         
-        return db_media
+        # 返却値もPydanticスキーマに変換
+        if isinstance(db_media, dict):
+            # genresプロパティを追加
+            db_media["genres"] = media.genres or []
+            # captured_atがNoneなら現在時刻をセット
+            if not db_media.get("captured_at"):
+                db_media["captured_at"] = datetime.utcnow()
+            return MediaResponse(**db_media)
+        else:
+            return db_media
     except Exception as e:
         logger.error(f"Error creating media: {str(e)}")
         raise HTTPException(
@@ -55,10 +69,22 @@ def read_media_items(
     Retrieve media items with optional filtering by media type.
     """
     try:
+        items = []
         if media_type:
-            return repo.get_by_media_type(media_type, skip, limit)
+            items = repo.get_by_media_type(media_type, skip, limit)
         else:
-            return repo.get_multi(skip=skip, limit=limit)
+            items = repo.get_multi(skip=skip, limit=limit)
+        
+        # captured_atがNoneの場合は現在時刻を設定
+        for item in items:
+            if isinstance(item, dict):
+                if not item.get("captured_at"):
+                    item["captured_at"] = datetime.utcnow()
+            else:
+                if not item.captured_at:
+                    item.captured_at = datetime.utcnow()
+        
+        return items
     except Exception as e:
         logger.error(f"Error retrieving media items: {str(e)}")
         raise HTTPException(
@@ -68,7 +94,7 @@ def read_media_items(
 
 @router.get("/{media_id}", response_model=MediaResponse)
 def read_media(
-    media_id: int, 
+    media_id: str, 
     repo: MediaRepository = Depends(get_media_repository)
 ):
     """
@@ -81,7 +107,7 @@ def read_media(
 
 @router.put("/{media_id}", response_model=MediaResponse)
 def update_media(
-    media_id: int, 
+    media_id: str, 
     media: MediaUpdate, 
     repo: MediaRepository = Depends(get_media_repository)
 ):
@@ -102,7 +128,7 @@ def update_media(
 
 @router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_media(
-    media_id: int, 
+    media_id: str, 
     repo: MediaRepository = Depends(get_media_repository)
 ):
     """

@@ -21,7 +21,7 @@ const HomeScreen = () => {
         <Card.Cover source={{ uri: item.coverImage || 'https://via.placeholder.com/150' }} />
         <Card.Content>
           <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.subtitle}>{item.mediaType} • {item.releaseYear}</Text>
+          <Text style={styles.subtitle}>{item.mediaType.toLowerCase()} • {item.releaseYear}</Text>
         </Card.Content>
       </Card>
     </TouchableOpacity>

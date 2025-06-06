@@ -1,12 +1,10 @@
-
-
 export enum MediaType {
-  MOVIE = 'movie',
-  ANIME = 'anime',
-  BOOK = 'book',
-  GAME = 'game',
-  MUSIC = 'music',
-  OTHER = 'other'
+  MOVIE = 'MOVIE',
+  ANIME = 'ANIME',
+  BOOK = 'BOOK',
+  GAME = 'GAME',
+  MUSIC = 'MUSIC',
+  OTHER = 'OTHER',
 }
 
 export type MediaTypeString = 'movie' | 'anime' | 'book' | 'game' | 'music' | 'other';

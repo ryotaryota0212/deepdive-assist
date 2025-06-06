@@ -25,7 +25,7 @@ class MediaUpdate(BaseModel):
 
 class MediaResponse(MediaBase):
     id: int
-    captured_at: datetime
+    captured_at: Optional[datetime] = None
     genres: Optional[List[str]] = None
 
     class Config:
